@@ -5,22 +5,58 @@
 #include <fstream>
 #include <queue>
 #include <thread>
-#include "Score.h"
-
-void readRandom();
+#include <cmath>
+#include "ShootingBoard.h"
 
 using namespace std;
 
+void readRandom();
+
+void addToSum(shared_ptr<ShootingBoard> scorePtr);
+
+void printPi(shared_ptr<ShootingBoard> scorePtr);
+
+long long int getAndRemoveLast(queue<long long int> &collection);
+
 queue<long long> RANDOM_QUEUE;
+bool STOP_CONDITION = false;
+long RADIUS = 10000;
 
 int main() {
-
-	readRandom();
-	srand(time(NULL));
-	cout << Score::getSumCircle1();
+	auto score = make_shared<ShootingBoard>();
 	cout << rand() << endl;
-	auto x = thread(readRandom);
-	x.join();
+	readRandom();
+	addToSum(score);
+	printPi(score);
+
+}
+
+void printPi(shared_ptr<ShootingBoard> scorePtr) {
+	if (scorePtr->getTotalSum() != 0) {
+		double sumsRatio = (double) scorePtr->getHitSum() / (double) scorePtr->getTotalSum();
+		double PI = 4.0f * sumsRatio;
+		printf("%.10f", PI);
+	}
+}
+
+void addToSum(shared_ptr<ShootingBoard> scorePtr) {
+	for (int i = 0; i < 9183; i++) {
+		if (RANDOM_QUEUE.size() >= 2) {
+			long long x = getAndRemoveLast(RANDOM_QUEUE);
+			long long y = getAndRemoveLast(RANDOM_QUEUE);
+			long long z = sqrt(pow(x, 2) + pow(y, 2));
+			scorePtr->incrementTotalSum();
+			if (z <= RADIUS) {
+				scorePtr->incrementHitSum();
+			}
+		}
+	}
+}
+
+long long int getAndRemoveLast(queue<long long int> &collection) {
+	long long temp = collection.front();
+	collection.pop();
+	return temp;
 }
 
 void readRandom() {
@@ -29,15 +65,9 @@ void readRandom() {
 	ifstream urandom("/dev/urandom", ios_base::in | ios_base::binary); //Open stream
 	if (urandom) //Check if stream is open
 	{
-		while (true) {
+		for (int i = 0; i < 100000; i++) {
 			urandom.read(reinterpret_cast<char *>(&random_value), size); //Read from urandom
-			if (urandom) //Check if stream is ok, read succeeded
-			{
-				RANDOM_QUEUE.push(random_value);
-			} else //Read failed
-			{
-				cerr << "Failed to read from /dev/urandom" << endl;
-			}
+			RANDOM_QUEUE.push(random_value % (2 * RADIUS) - RADIUS);
 		}
 		urandom.close(); //close stream
 	} else //Open failed
