@@ -5,6 +5,8 @@
 #ifndef APPROXMONTECARLO_SCORE_H
 #define APPROXMONTECARLO_SCORE_H
 
+#include <mutex>
+
 class ShootingBoard {
 public:
 	void incrementTotalSum();
@@ -16,8 +18,9 @@ public:
 	long long getTotalSum();
 
 private:
-	long long totalSum = 0;;
-	long long hitSum = 0;;
+	long long totalSum = 0;
+	long long hitSum = 0;
+	std::mutex boardMutex;
 };
 
 #endif //APPROXMONTECARLO_SCORE_H
