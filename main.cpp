@@ -7,6 +7,7 @@
 #include <thread>
 #include <cmath>
 #include <condition_variable>
+#include <algorithm>
 #include "ShootingBoard.h"
 
 using namespace std;
@@ -14,46 +15,54 @@ using namespace std;
 void readRandom();
 
 void countHits(shared_ptr<ShootingBoard> scorePtr);
+
 void printPi(shared_ptr<ShootingBoard> scorePtr);
+
 long long int getAndRemoveLast(queue<long long int> &collection);
+
 void addOneRandom(unsigned long long int &random_value, size_t size, ifstream &urandom);
 
-void
-countTotalHits(shared_ptr<ShootingBoard> scoreOne, shared_ptr<ShootingBoard> scoreTwo, shared_ptr<ShootingBoard> ptr);
+void countTotalHits(shared_ptr<ShootingBoard> totalScore, vector<shared_ptr<ShootingBoard>> scores);
 
 queue<long long> RANDOM_QUEUE;
+
 mutex randomQueueMutex;
 condition_variable conditionVariable;
-
 bool STOP_CONDITION = false;
+
 long RADIUS = 1000000000;
+static const int THREAD_COUNT = 60;
 
 int main() {
-	auto scoreOne = make_shared<ShootingBoard>();
-	auto scoreTwo = make_shared<ShootingBoard>();
-	auto totalScore = make_shared<ShootingBoard>();
+	vector<shared_ptr<ShootingBoard>> scores;
+	vector<thread> threads;
 
 	auto randomFiller = thread(readRandom);
 
-	auto counterOne = thread(countHits, scoreOne);
-	auto counterTwo = thread(countHits, scoreTwo);
+	for (int i = 0; i < THREAD_COUNT; i++) {
+		auto board = make_shared<ShootingBoard>();
+		scores.push_back(board);
+		threads.push_back(thread(countHits, board));
+	}
+	auto totalScore = make_shared<ShootingBoard>();
 
+	auto totalCounter = thread(countTotalHits, totalScore, scores);
 	auto printer = thread(printPi, totalScore);
-	countTotalHits(totalScore, scoreOne, scoreTwo);
+
+	for_each(threads.begin(), threads.end(), [](thread &th) { th.join(); });
 	randomFiller.join();
-	counterOne.join();
-	counterTwo.join();
+	totalCounter.join();
 	printer.join();
 
 }
 
 void printPi(shared_ptr<ShootingBoard> scorePtr) {
 	while (!STOP_CONDITION) {
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 		if (scorePtr->getTotalSum() != 0) {
 			double sumsRatio = (double) scorePtr->getHitSum() / (double) scorePtr->getTotalSum();
 			double PI = 4.0f * sumsRatio;
-			printf("%.15f\n", PI);
-			std::this_thread::sleep_for(std::chrono::seconds(1));
+			printf("%lli %.15f\n", scorePtr->getTotalSum(), PI);
 		}
 	}
 }
@@ -62,7 +71,6 @@ void countHits(shared_ptr<ShootingBoard> scorePtr) {
 	while (!STOP_CONDITION) {
 		unique_lock<mutex> lock(randomQueueMutex);
 		conditionVariable.wait(lock);
-
 		long long x = getAndRemoveLast(RANDOM_QUEUE);
 		long long y = getAndRemoveLast(RANDOM_QUEUE);
 		long long z = sqrt(pow(x, 2) + pow(y, 2));
@@ -73,10 +81,17 @@ void countHits(shared_ptr<ShootingBoard> scorePtr) {
 	}
 }
 
-void countTotalHits(shared_ptr<ShootingBoard> totalScore ,shared_ptr<ShootingBoard> scoreOne, shared_ptr<ShootingBoard> scoreTwo) {
+void countTotalHits(shared_ptr<ShootingBoard> totalScore, vector<shared_ptr<ShootingBoard>> scores) {
 	while (!STOP_CONDITION) {
-		totalScore->setHitSum(scoreOne->getHitSum() + scoreTwo->getHitSum());
-		totalScore->setTotalSum(scoreOne->getTotalSum() + scoreTwo->getTotalSum());
+		long long hitSum = 0;
+		long long totalSum = 0;
+
+		for_each(scores.begin(), scores.end(), [&hitSum, &totalSum](shared_ptr<ShootingBoard> board) {
+			hitSum += board->getHitSum();
+			totalSum += board->getTotalSum();
+		});
+		totalScore->setHitSum(hitSum);
+		totalScore->setTotalSum(totalSum);
 	}
 }
 
@@ -94,7 +109,7 @@ void readRandom() {
 	{
 		while (!STOP_CONDITION) {
 			{
-				std::lock_guard<std::mutex> lk(mutex);
+				std::lock_guard<std::mutex> lk(randomQueueMutex);
 				addOneRandom(random_value, size, urandom);
 				addOneRandom(random_value, size, urandom);
 			}
