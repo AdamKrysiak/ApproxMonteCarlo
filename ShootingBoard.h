@@ -13,6 +13,10 @@ public:
 
 	void incrementHitSum();
 
+	void setHitSum(long long newHitSum);
+
+	void setTotalSum(long long newTotalSum);
+
 	long long getHitSum();
 
 	long long getTotalSum();

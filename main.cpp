@@ -13,28 +13,36 @@ using namespace std;
 
 void readRandom();
 
-void addToSum(shared_ptr<ShootingBoard> scorePtr);
-
+void countHits(shared_ptr<ShootingBoard> scorePtr);
 void printPi(shared_ptr<ShootingBoard> scorePtr);
-
 long long int getAndRemoveLast(queue<long long int> &collection);
-
 void addOneRandom(unsigned long long int &random_value, size_t size, ifstream &urandom);
+
+void
+countTotalHits(shared_ptr<ShootingBoard> scoreOne, shared_ptr<ShootingBoard> scoreTwo, shared_ptr<ShootingBoard> ptr);
 
 queue<long long> RANDOM_QUEUE;
 mutex randomQueueMutex;
 condition_variable conditionVariable;
 
 bool STOP_CONDITION = false;
-long RADIUS = 10000;
+long RADIUS = 1000000000;
 
 int main() {
-	auto score = make_shared<ShootingBoard>();
+	auto scoreOne = make_shared<ShootingBoard>();
+	auto scoreTwo = make_shared<ShootingBoard>();
+	auto totalScore = make_shared<ShootingBoard>();
+
 	auto randomFiller = thread(readRandom);
-	auto counter = thread(addToSum, score);
-	auto printer = thread(printPi, score);
+
+	auto counterOne = thread(countHits, scoreOne);
+	auto counterTwo = thread(countHits, scoreTwo);
+
+	auto printer = thread(printPi, totalScore);
+	countTotalHits(totalScore, scoreOne, scoreTwo);
 	randomFiller.join();
-	counter.join();
+	counterOne.join();
+	counterTwo.join();
 	printer.join();
 
 }
@@ -50,7 +58,7 @@ void printPi(shared_ptr<ShootingBoard> scorePtr) {
 	}
 }
 
-void addToSum(shared_ptr<ShootingBoard> scorePtr) {
+void countHits(shared_ptr<ShootingBoard> scorePtr) {
 	while (!STOP_CONDITION) {
 		unique_lock<mutex> lock(randomQueueMutex);
 		conditionVariable.wait(lock);
@@ -62,6 +70,13 @@ void addToSum(shared_ptr<ShootingBoard> scorePtr) {
 		if (z <= RADIUS) {
 			scorePtr->incrementHitSum();
 		}
+	}
+}
+
+void countTotalHits(shared_ptr<ShootingBoard> totalScore ,shared_ptr<ShootingBoard> scoreOne, shared_ptr<ShootingBoard> scoreTwo) {
+	while (!STOP_CONDITION) {
+		totalScore->setHitSum(scoreOne->getHitSum() + scoreTwo->getHitSum());
+		totalScore->setTotalSum(scoreOne->getTotalSum() + scoreTwo->getTotalSum());
 	}
 }
 
