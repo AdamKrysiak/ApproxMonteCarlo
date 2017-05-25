@@ -8,6 +8,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <algorithm>
+#include <ncurses.h>
 #include "ShootingBoard.h"
 
 void fillQueueWithRandoms();
@@ -21,11 +22,12 @@ std::queue<long long> RANDOM_QUEUE;
 std::mutex RANDOM_QUEUE_MUTEX;
 std::condition_variable RANDOM_ADDED_VARIABLE;
 
-static const int THREAD_COUNT = 60;
+static const int THREAD_COUNT = 4;
 bool STOP_CONDITION = false;
 long RADIUS = 1000000000;
 
 int main() {
+	initscr();
 	std::vector<std::shared_ptr<ShootingBoard>> scores;
 	std::vector<std::thread> threads;
 
@@ -45,6 +47,7 @@ int main() {
 	randomFiller.join();
 	totalCounter.join();
 	printer.join();
+	endwin();
 }
 
 void fillQueueWithRandoms() {
@@ -114,7 +117,9 @@ void printPi(std::shared_ptr<ShootingBoard> scorePtr) {
 		if (scorePtr->getTotalSum() != 0) {
 			double sumsRatio = (double) scorePtr->getHitSum() / (double) scorePtr->getTotalSum();
 			double PI = 4.0f * sumsRatio;
-			printf("%lli %.15f\n", scorePtr->getTotalSum(), PI);
+			refresh();
+			clear();
+			printw("%lli %.15f\n", scorePtr->getTotalSum(), PI);
 		}
 	}
 }
